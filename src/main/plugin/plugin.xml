@@ -1,0 +1,88 @@
+<plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.jivesoftware.com/schemas/clearspace/2_5/plugin.xsd">
+	<name>spam</name>
+	<description>Plugin helps handling SPAM</description>
+	<author>JBoss Community</author>
+	<version>1.0.0</version>
+	<minServerVersion>4.5.6</minServerVersion>
+
+	<!-- Links are very similar to Report Abuse definition in ui-components.xml -->
+
+	<components>
+		<component id="admin-console">
+			<tab id="usersgroups">
+				<section id="section-users-management">
+					<item id="user-spam" name="spam.admin.name" url="resolve-user-spam-content!input.jspa"
+						description="spam.admin.description" />
+				</section>
+			</tab>
+		</component>
+	
+	
+		<component id="document-actions">
+			<tab id="document-actions-tab">
+				<item id="jboss-link-report-spam" name="spam.action.report" cssClass="jive-icon-med jive-icon-warn">
+					<when>
+                    <![CDATA[jiveContext.getAbuseManager().isReportAbuseEnabled() && (document.status == Status.PUBLISHED || document.status == Status.ABUSE_VISIBLE) && (user?exists && !user.anonymous && user.ID?c != document.user.ID?c)]]></when>
+					<url>
+                    <![CDATA[<@s.url action='report-spam' method='input'><@s.param name='objectID' value='${document.ID?c}'/><@s.param name='objectType' value='${document.objectType?c}'/></@s.url>]]></url>
+				</item>
+			</tab>
+		</component>
+
+		<component id="thread-actions">
+			<tab id="thread-actions-tab">
+				<item id="jboss-link-report-spam" name="spam.action.report" cssClass="jive-icon-med jive-icon-warn">
+					<when>
+                    <![CDATA[jiveContext.getAbuseManager().isReportAbuseEnabled() && (user?exists && !user.anonymous && thread.rootMessage.user?exists && user.ID != thread.rootMessage.user.ID)]]></when>
+					<url>
+                    <![CDATA[<@s.url action='report-spam' method='input'><@s.param name='objectID' value='${thread.ID?c}'/><@s.param name='objectType' value='${thread.objectType?c}'/></@s.url>]]></url>
+				</item>
+			</tab>
+		</component>
+
+		<component id="blog-actions">
+			<tab id="blog-actions-tab">
+				<item id="jboss-link-report-spam" name="spam.action.report" cssClass="jive-icon-med jive-icon-warn">
+					<when>
+                    <![CDATA[blogPost?exists && jiveContext.getAbuseManager().isReportAbuseEnabled() && (user?exists && !user.anonymous && user.ID?c != blogPost.user.ID?c)]]></when>
+					<url>
+                    <![CDATA[<@s.url action='report-spam' method='input'><@s.param name='objectID' value='${blogPost.ID?c}'/><@s.param name='objectType' value='${blogPost.objectType?c}'/></@s.url>]]></url>
+				</item>
+			</tab>
+		</component>
+<!--
+It's not added to favorite actions because only External URL can be problematic and this type of content
+unfortunately doesn't provide owner. So only Report Abuse feature is enough. 
+		<component id="favorite-actions">
+			<tab id="favorite-actions-tab">
+				<item id="jboss-link-report-spam" name="spam.action.report" cssClass="jive-icon-med jive-icon-warn">
+					<when><![CDATA[jiveContext.getAbuseManager().isReportAbuseEnabled() && !user.anonymous]]></when>
+					<url>
+                    <![CDATA[<@s.url action='report-spam' method='input'><@s.param name='objectID' value='${externalUrl.ID?c}'/><@s.param name='objectType' value='${externalUrl.objectType?c}'/></@s.url>]]></url>
+				</item>
+			</tab>
+		</component>
+-->
+
+		<component id="poll-actions">
+			<tab id="poll-actions-tab">
+				<item id="jboss-link-report-spam" name="spam.action.report" cssClass="jive-icon-med jive-icon-warn">
+					<when>
+                    <![CDATA[jiveContext.getAbuseManager().isReportAbuseEnabled() && (user?exists && !user.anonymous && poll.user?exists && user.ID != poll.user.ID)]]></when>
+					<url>
+                    <![CDATA[<@s.url action='report-spam' method='input'><@s.param name='objectID' value='${poll.ID?c}'/><@s.param name='objectType' value='${poll.objectType?c}'/></@s.url>]]></url>
+				</item>
+			</tab>
+		</component>
+
+		<component id="microblog-actions">
+			<tab id="microblog-actions-tab">
+				<item id="jboss-link-report-spam" name="spam.action.report" cssClass="jive-icon-med jive-icon-warn">
+					<when><![CDATA[jiveContext.getAbuseManager().isReportAbuseEnabled() && !action.isOwner(user) && !action.isAdmin(user)]]></when>
+					<url><![CDATA[<@s.url action='report-spam' method='input'><@s.param name='objectID' value='${wallEntry.ID?c}'/><@s.param name='objectType' value='${wallEntry.objectType?c}'/></@s.url>]]></url>
+				</item>
+			</tab>
+		</component>
+	</components>
+
+</plugin>
