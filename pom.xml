@@ -197,6 +197,7 @@
 		<profile>
 			<id>jive.archiva</id>
 			<!-- To access these repositories you need to have access defined in .m2/settings.xml in server section -->
+			<!-- How to: https://community.jivesoftware.com/docs/DOC-38298 -->
 			<activation>
 				<activeByDefault>true</activeByDefault>
 			</activation>
@@ -205,12 +206,12 @@
 				<repository>
 					<id>jive.internal</id>
 					<name>Jive's Repository</name>
-					<url>http://maven-secure.jivesoftware.com/archiva/repository/jive.internal</url>
+					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.internal</url>
 				</repository>
 				<repository>
 					<id>jive.snapshots</id>
 					<name>Jive's Repository</name>
-					<url>http://maven-secure.jivesoftware.com/archiva/repository/jive.snapshots</url>
+					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.snapshots</url>
 				</repository>
 			</repositories>
 
@@ -218,12 +219,12 @@
 				<pluginRepository>
 					<id>jive.internal</id>
 					<name>Jive's Repository</name>
-					<url>http://maven-secure.jivesoftware.com/archiva/repository/jive.internal</url>
+					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.internal</url>
 				</pluginRepository>
 				<pluginRepository>
 					<id>jive.snapshots</id>
 					<name>Jive's Repository</name>
-					<url>http://maven-secure.jivesoftware.com/archiva/repository/jive.snapshots</url>
+					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.snapshots</url>
 				</pluginRepository>
 			</pluginRepositories>
 
