@@ -1,0 +1,35 @@
+<!DOCTYPE struts PUBLIC "-//Apache Software Foundation//DTD Struts Configuration 2.0//EN"
+        "http://struts.apache.org/dtds/struts-2.0.dtd">
+<struts>
+	<package name="spam-actions" namespace="/" extends="community-actions">
+
+		<action name="report-spam" class="org.jboss.sbs.spam.action.ReportSpamAction">
+			<interceptor-ref name="defaultStack" />
+			<interceptor-ref name="token">
+				<param name="excludeMethods">cancel,input</param>
+			</interceptor-ref>
+			<result name="cancel" type="redirect">${link}</result>
+			<result name="error">/plugins/spam/resources/templates/report-spam.ftl</result>
+			<result name="input">/plugins/spam/resources/templates/report-spam.ftl</result>
+			<result name="success" type="redirect">${link}?abuseReported=true</result>
+		</action>
+
+	</package>
+
+
+	<package name="spam-actions-admin" namespace="/admin" extends="community-admin-default">
+
+		<action name="resolve-user-spam-content" class="org.jboss.sbs.spam.action.SpamAdminAction" method="resolveContentAsSpam">
+			<interceptor-ref name="defaultStack" />
+			<result name="input" type="freemarker">
+				/plugins/spam/resources/templates/admin/spam-admin.ftl
+			</result>
+			<result name="error" type="freemarker">
+				/plugins/spam/resources/templates/admin/spam-admin.ftl
+			</result>
+			<result name="success" type="redirect">/admin/resolve-user-spam-content!input.jspa</result>
+		</action>
+
+	</package>
+
+</struts>
