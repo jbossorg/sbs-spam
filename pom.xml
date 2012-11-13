@@ -6,7 +6,7 @@
 	<artifactId>spam</artifactId>
 	<name>SBS plugin: SPAM</name>
 	<description>Plugin helps spam handling</description>
-	<version>1.0.0</version>
+	<version>1.0.1-SNAPSHOT</version>
 
 	<developers>
 		<developer>
