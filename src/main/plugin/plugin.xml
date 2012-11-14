@@ -2,7 +2,7 @@
 	<name>spam</name>
 	<description>Plugin helps handling SPAM</description>
 	<author>JBoss Community</author>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<minServerVersion>4.5.6</minServerVersion>
 
 	<!-- Links are very similar to Report Abuse definition in ui-components.xml -->
