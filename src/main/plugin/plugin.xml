@@ -2,8 +2,17 @@
 	<name>spam</name>
 	<description>Plugin helps handling SPAM</description>
 	<author>JBoss Community</author>
-	<version>1.1.0</version>
+	<version>1.2.0</version>
 	<minServerVersion>4.5.6</minServerVersion>
+	<licenseType>apache</licenseType>
+
+	<!-- Plugin class -->
+	<class>org.jboss.sbs.spam.SpamPlugin</class>
+
+	<!-- Reference: http://docs.jivesoftware.com/clearspace/latest/PluginXMLReference.html#macro_element -->
+	<!--
+	<renderer class="org.jboss.sbs.spam.filter.NofollowLinkFilter" />
+    -->
 
 	<!-- Links are very similar to Report Abuse definition in ui-components.xml -->
 

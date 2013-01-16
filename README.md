@@ -44,3 +44,8 @@ These properties can be configured in interceptor:
 * Post Interval
 * Poinst Level
 * Rejection Message
+
+No follow links filter
+----------------------
+Post processing filter which adds re="nofollow" attribute to all links. It's enabled by default.
+If you want to disable it just go to SBS admin console > Spaces > Settings > Filter and Macros and turn off this filter

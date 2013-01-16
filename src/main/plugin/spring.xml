@@ -7,6 +7,11 @@ http://www.springframework.org/schema/util http://www.springframework.org/schema
 http://www.directwebremoting.org/schema/spring-dwr http://www.directwebremoting.org/schema/spring-dwr-2.0.xsd"
 	default-autowire="no" default-init-method="init" default-destroy-method="destroy">
 
+	<bean id="spamPlugin" class="org.jboss.sbs.spam.SpamPlugin">
+		<property name="globalRenderManager" ref="globalRenderManager" />
+		<property name="builder" ref="jiveLinkBuilder" />
+	</bean>
+
 	<bean id="spamManager" class="org.jboss.sbs.spam.DbSpamManager">
 		<property name="abuseManager" ref="abuseManagerImpl" />
 		<property name="userManager" ref="userManagerImpl" />
