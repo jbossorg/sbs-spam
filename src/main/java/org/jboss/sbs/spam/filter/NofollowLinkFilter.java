@@ -23,8 +23,11 @@
 package org.jboss.sbs.spam.filter;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.StringTokenizer;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -44,69 +47,116 @@ import com.jivesoftware.community.renderer.impl.v2.JAXPUtils;
  * @author Libor Krzyzanek
  * 
  */
-@PropertyNames({ "enabled" })
+@PropertyNames({ "enabled", "domainWhiteList" })
 @PersistSettings(true)
 public class NofollowLinkFilter extends AbstractRenderFilter implements PostProcessingRenderFilter {
 
-    private static Map<String, String[]> documentation = new HashMap<String, String[]>();
-    private static String[] DEFAULT_HELP = new String[] { "", "", "" };
+	private static Map<String, String[]> documentation = new HashMap<String, String[]>();
+	private static String[] DEFAULT_HELP = new String[] { "", "", "" };
 
-    protected static final Logger log = LogManager.getLogger(NofollowLinkFilter.class);
+	protected static final Logger log = LogManager.getLogger(NofollowLinkFilter.class);
 
-    @Override
-    public String getName() {
-        return "NofollowLinkFilter";
-    }
+	private Set<String> domainsWhiteList = new HashSet<String>();
 
-    private JiveLinkBuilder builder;
+	private String domainWhiteList;
 
-    @Override
-    public void execute(Document document, RenderContext renderContext) {
-        if (!isEnabled()) {
-            log.debug("Filter is not enabled");
-            return;
-        }
+	@Override
+	public String getName() {
+		return "NofollowLinkFilter";
+	}
 
-        List<Element> elementList = JAXPUtils.selectAllNodes(document, JiveHtmlElement.Anchor.getTag());
+	private JiveLinkBuilder builder;
 
-        for (Element element : elementList) {
-            if (log.isDebugEnabled()) {
-                log.debug("Setting rel to this anchor: " + element);
-            }
-            if (shouldProcess(element, renderContext)) {
-                element.setAttribute("rel", "nofollow");
-                log.debug("done.");
-            }
-        }
+	@Override
+	public void execute(Document document, RenderContext renderContext) {
+		if (!isEnabled()) {
+			log.debug("Filter is not enabled");
+			return;
+		}
 
-    }
+		List<Element> elementList = JAXPUtils.selectAllNodes(document, JiveHtmlElement.Anchor.getTag());
 
-    public JiveLinkBuilder getBuilder() {
-        return builder;
-    }
+		for (Element element : elementList) {
+			String addr = element.getAttribute("href");
+			if (log.isDebugEnabled()) {
+				log.debug("Setting rel to this anchor with address: " + addr);
+			}
 
-    public void setBuilder(JiveLinkBuilder builder) {
-        this.builder = builder;
-    }
+			if (isOnWhitelist(addr)) {
+				log.debug("Address is on white list. Skipping no follow attribute.");
+				continue;
+			}
 
-    @Override
-    protected boolean isEnabledByDefault() {
-        return true;
-    }
+			if (shouldProcess(element, renderContext)) {
+				element.setAttribute("rel", "nofollow");
+				log.debug("done.");
+			}
+		}
+	}
 
-    @Override
-    protected Map<String, String[]> getDocumentationMap() {
-        return documentation;
-    }
+	public boolean isOnWhitelist(String addr) {
+		for (String a : domainsWhiteList) {
+			if (addr.startsWith(a)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
-    @Override
-    protected String[] getDefaultHelp() {
-        return DEFAULT_HELP;
-    }
+	public JiveLinkBuilder getBuilder() {
+		return builder;
+	}
 
-    @Override
-    public int getOrder() {
-        return 100;
-    }
+	public void setBuilder(JiveLinkBuilder builder) {
+		this.builder = builder;
+	}
+
+	@Override
+	protected boolean isEnabledByDefault() {
+		return true;
+	}
+
+	@Override
+	protected Map<String, String[]> getDocumentationMap() {
+		return documentation;
+	}
+
+	@Override
+	protected String[] getDefaultHelp() {
+		return DEFAULT_HELP;
+	}
+
+	@Override
+	public int getOrder() {
+		return 100;
+	}
+
+	public Set<String> getDomainsWhiteList() {
+		return domainsWhiteList;
+	}
+
+	public void setDomainsWhiteList(Set<String> domainsWhiteList) {
+		this.domainsWhiteList = domainsWhiteList;
+	}
+
+	public String getDomainWhiteList() {
+		return domainWhiteList;
+	}
+
+	public void setDomainWhiteList(String domainWhiteList) {
+		this.domainWhiteList = domainWhiteList;
+		domainsWhiteList = new HashSet<String>();
+
+		if (domainWhiteList != null) {
+			StringTokenizer tokenizer = new StringTokenizer(domainWhiteList, " ");
+			while (tokenizer.hasMoreTokens()) {
+				String d = tokenizer.nextToken();
+				domainsWhiteList.add("http://" + d);
+				domainsWhiteList.add("https://" + d);
+			}
+		}
+		log.debug("Domain white list initialized based on this setting: " + domainWhiteList);
+		log.debug("Result is: " + domainsWhiteList);
+	}
 
 }

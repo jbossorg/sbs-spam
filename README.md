@@ -47,5 +47,6 @@ These properties can be configured in interceptor:
 
 No follow links filter
 ----------------------
-Post processing filter which adds re="nofollow" attribute to all links. It's enabled by default.
+Post processing filter which adds re="nofollow" attribute to all links except those listed in white list.
+It's enabled by default.
 If you want to disable it just go to SBS admin console > Spaces > Settings > Filter and Macros and turn off this filter

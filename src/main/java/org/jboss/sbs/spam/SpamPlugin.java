@@ -37,54 +37,62 @@ import com.jivesoftware.community.renderer.impl.JiveGlobalRenderManager;
  */
 public class SpamPlugin implements Plugin<SpamPlugin> {
 
-    private JiveGlobalRenderManager globalRenderManager;
+	private JiveGlobalRenderManager globalRenderManager;
 
-    private JiveLinkBuilder builder;
+	private JiveLinkBuilder builder;
 
-    private Boolean nofollowLinkFilterRegistered = false;
+	private Boolean nofollowLinkFilterRegistered = false;
 
-    protected static final Logger log = LogManager.getLogger(SpamPlugin.class);
+	protected static final Logger log = LogManager.getLogger(SpamPlugin.class);
 
-    public SpamPlugin() {
-    }
+	public SpamPlugin() {
+	}
 
-    @Override
-    public void init() {
-        // known bug CS-10237 - init method is called three times. That's the reason of this synchronized stuff
-        log.info("initPlugin started.");
-        synchronized (nofollowLinkFilterRegistered) {
-            // filter cannot be initialized by spring because globelRendererManager return it in getRenderPlugin although it's
-            // not in list of renderers
-            NofollowLinkFilter nofollowLinkFilter = new NofollowLinkFilter();
-            nofollowLinkFilter.setBuilder(builder);
-            // It's needed to set enabled/disabled because SBS doesn't set it after restart even value is stored in jive
-            // properties.
-            boolean enabled = JiveGlobals.getJiveBooleanProperty("globalRenderManager." + nofollowLinkFilter.getName()
-                    + ".enabled", nofollowLinkFilter.isEnabled());
-            nofollowLinkFilter.setEnabled(enabled);
+	@Override
+	public void init() {
+		// known bug CS-10237 - init method is called three times. That's the reason of this synchronized stuff
+		log.info("initPlugin started.");
+		synchronized (nofollowLinkFilterRegistered) {
+			// filter cannot be initialized by spring because globelRendererManager return it in getRenderPlugin
+			// although it's
+			// not in list of renderers
+			NofollowLinkFilter nofollowLinkFilter = new NofollowLinkFilter();
+			nofollowLinkFilter.setBuilder(builder);
 
-            log.debug("registered plugin: " + globalRenderManager.getRenderPlugin(nofollowLinkFilter.getName()));
+			final String filterName = nofollowLinkFilter.getName();
 
-            if (!nofollowLinkFilterRegistered && globalRenderManager.getRenderPlugin(nofollowLinkFilter.getName()) == null) {
-                globalRenderManager.addRenderPlugin(nofollowLinkFilter);
-                log.info(nofollowLinkFilter.getName() + " filter successfuly registered.");
-            } else {
-                log.info(nofollowLinkFilter.getName() + " filter already registered.");
-            }
-            nofollowLinkFilterRegistered = true;
-        }
-    }
+			// It's needed to set filter properties because SBS doesn't set it after restart even value is stored in
+			// jive properties.
+			boolean enabled = JiveGlobals.getJiveBooleanProperty("globalRenderManager." + filterName + ".enabled",
+					nofollowLinkFilter.isEnabled());
+			nofollowLinkFilter.setEnabled(enabled);
 
-    @Override
-    public void destroy() {
-    }
+			String domainWhiteList = JiveGlobals.getJiveProperty("globalRenderManager." + filterName
+					+ ".domainWhiteList");
+			nofollowLinkFilter.setDomainWhiteList(domainWhiteList);
 
-    public void setGlobalRenderManager(JiveGlobalRenderManager globalRenderManager) {
-        this.globalRenderManager = globalRenderManager;
-    }
+			log.debug("registered plugin: " + globalRenderManager.getRenderPlugin(filterName));
 
-    public void setBuilder(JiveLinkBuilder builder) {
-        this.builder = builder;
-    }
+			if (!nofollowLinkFilterRegistered && globalRenderManager.getRenderPlugin(filterName) == null) {
+				globalRenderManager.addRenderPlugin(nofollowLinkFilter);
+				log.info(filterName + " filter successfuly registered.");
+			} else {
+				log.info(filterName + " filter already registered.");
+			}
+			nofollowLinkFilterRegistered = true;
+		}
+	}
+
+	@Override
+	public void destroy() {
+	}
+
+	public void setGlobalRenderManager(JiveGlobalRenderManager globalRenderManager) {
+		this.globalRenderManager = globalRenderManager;
+	}
+
+	public void setBuilder(JiveLinkBuilder builder) {
+		this.builder = builder;
+	}
 
 }
