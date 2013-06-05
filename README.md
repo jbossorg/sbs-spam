@@ -44,6 +44,7 @@ These properties can be configured in interceptor:
 * Post Interval
 * Poinst Level
 * Rejection Message
+* E-mail white-list
 
 No follow links filter
 ----------------------
