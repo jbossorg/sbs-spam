@@ -5,6 +5,17 @@
  */
 package org.jboss.sbs.spam.interceptor;
 
+import com.jivesoftware.base.User;
+import com.jivesoftware.cache.Cache;
+import com.jivesoftware.community.*;
+import com.jivesoftware.community.annotations.PropertyNames;
+import com.jivesoftware.community.cache.CacheFactory;
+import com.jivesoftware.community.cache.CacheParameters;
+import com.jivesoftware.community.interceptor.GovernorInterceptor;
+import com.jivesoftware.community.lifecycle.JiveApplication;
+import com.jivesoftware.util.StringUtils;
+import org.apache.log4j.Logger;
+
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,29 +23,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
-import org.apache.log4j.Logger;
-
-import com.jivesoftware.base.User;
-import com.jivesoftware.cache.Cache;
-import com.jivesoftware.community.JiveConstants;
-import com.jivesoftware.community.JiveContentObject;
-import com.jivesoftware.community.JiveInterceptor;
-import com.jivesoftware.community.JiveObject;
-import com.jivesoftware.community.RejectedException;
-import com.jivesoftware.community.annotations.PropertyNames;
-import com.jivesoftware.community.cache.CacheFactory;
-import com.jivesoftware.community.cache.CacheParameters;
-import com.jivesoftware.community.interceptor.GovernorInterceptor;
-import com.jivesoftware.community.lifecycle.JiveApplication;
-import com.jivesoftware.util.StringUtils;
-
 /**
  * Extended implementation of {@link GovernorInterceptor} which allows users with better status level to have no post
  * time restriction
- * 
+ *
  * @author Libor Krzyzanek
  */
-@PropertyNames({ "postInterval", "pointsLevel", "rejectionMessage" })
+@PropertyNames({"postInterval", "pointsLevel", "rejectionMessage", "emailDomainWhitelist"})
 public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 
 	private static final Logger log = Logger.getLogger(GovernorStatusLevelInterceptor.class);
@@ -44,6 +39,10 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 	private int postInterval = 30;
 
 	private String rejectionMessage = "Not allowed to post content more than once every {0} seconds.";
+
+	protected String emailDomainWhitelist;
+
+	protected String[] emailDomainAllowed;
 
 	private String cacheName;
 
@@ -105,16 +104,25 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 
 				if (log.isTraceEnabled()) {
 					log.trace("Author '" + author.getUsername() + "' has points: " + points + ". Points level is: "
-							+ pointsLevel);
+							+ pointsLevel + ", emailDomainWhitelist: " + emailDomainWhitelist);
 				}
+
+				if (emailDomainAllowed != null && emailDomainAllowed.length > 0) {
+					for (String emailAllowed : emailDomainAllowed) {
+						if (author.getEmail().endsWith(emailAllowed)) {
+							log.debug("Author has e-mail on domain whitelist. Will not be affected by this interceptor.");
+							return;
+						}
+					}
+				}
+
 
 				if (points > pointsLevel) {
 					log.debug("Author has more points than limit. Will not be affected by this interceptor.");
 					return;
-				} else {
-					log.debug("Author has less points than points limit. Check post limit.");
-					processContent(author.getID(), content);
 				}
+				log.debug("Going to check the post limit.");
+				processContent(author.getID(), content);
 			}
 		}
 	}
@@ -132,7 +140,7 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 				rejectMsg = StringUtils.replace(rejectMsg, "'", "''");
 			}
 			rejectMsg = MessageFormat.format(rejectMsg,
-					(java.lang.Object[]) new String[] { Integer.toString(postInterval) });
+					(java.lang.Object[]) new String[]{Integer.toString(postInterval)});
 			throw new RejectedException(rejectMsg, content);
 		} else {
 			log.trace("User is NOT in cache");
@@ -149,6 +157,22 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 			log.trace("Setting points level to: " + pointsLevel);
 		}
 		this.pointsLevel = pointsLevel;
+	}
+
+	public String getEmailDomainWhitelist() {
+		return emailDomainWhitelist;
+	}
+
+	public void setEmailDomainWhitelist(String emailDomainWhitelist) {
+		if (log.isTraceEnabled()) {
+			log.trace("Setting emailDomainWhitelist to: " + emailDomainWhitelist);
+		}
+		this.emailDomainWhitelist = emailDomainWhitelist;
+		if (StringUtils.isNotBlank(emailDomainWhitelist)) {
+			emailDomainAllowed = StringUtils.split(emailDomainWhitelist);
+		} else {
+			emailDomainAllowed = null;
+		}
 	}
 
 	public String getRejectionMessage() {
