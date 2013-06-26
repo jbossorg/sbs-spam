@@ -47,6 +47,8 @@ public class SpamAdminAction extends JiveActionSupport {
 
 			spamManager.resolveContentAsSpam(user, getUser());
 
+			log.debug("All content resolved. Enable user.");
+
 			userManager.enableUser(user);
 
 			addActionMessage(getText("spam.admin.resolve.text.success"));

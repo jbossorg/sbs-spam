@@ -35,7 +35,7 @@ import com.jivesoftware.community.renderer.impl.JiveGlobalRenderManager;
  * @author Libor Krzyzanek
  * 
  */
-public class SpamPlugin implements Plugin<SpamPlugin> {
+public class SpamPlugin implements Plugin {
 
 	private JiveGlobalRenderManager globalRenderManager;
 
@@ -49,7 +49,7 @@ public class SpamPlugin implements Plugin<SpamPlugin> {
 	}
 
 	@Override
-	public void init() {
+	public void initPlugin() {
 		// known bug CS-10237 - init method is called three times. That's the reason of this synchronized stuff
 		log.info("initPlugin started.");
 		synchronized (nofollowLinkFilterRegistered) {
@@ -75,7 +75,7 @@ public class SpamPlugin implements Plugin<SpamPlugin> {
 
 			if (!nofollowLinkFilterRegistered && globalRenderManager.getRenderPlugin(filterName) == null) {
 				globalRenderManager.addRenderPlugin(nofollowLinkFilter);
-				log.info(filterName + " filter successfuly registered.");
+				log.info(filterName + " filter successfully registered.");
 			} else {
 				log.info(filterName + " filter already registered.");
 			}

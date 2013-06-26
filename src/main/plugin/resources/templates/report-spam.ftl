@@ -5,7 +5,8 @@
     <meta name="nosidebar" content="true" />
 
     <content tag="breadcrumb">
-        <@s.action name="community-breadcrumb" executeResult="true" ignoreContextParams="true" />
+		<@s.action name="legacy-breadcrumb" executeResult="true" ignoreContextParams="true">
+		</@s.action>
     </content>
 
 </head>

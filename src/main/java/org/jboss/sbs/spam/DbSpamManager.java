@@ -5,42 +5,14 @@
  */
 package org.jboss.sbs.spam;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.log4j.Logger;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.google.common.collect.Sets;
 import com.jivesoftware.base.User;
 import com.jivesoftware.base.UserManager;
-import com.jivesoftware.community.AbuseManager;
-import com.jivesoftware.community.AbuseReport;
-import com.jivesoftware.community.AbuseType;
-import com.jivesoftware.community.ApprovalManager;
-import com.jivesoftware.community.Blog;
-import com.jivesoftware.community.BlogManager;
-import com.jivesoftware.community.BlogPost;
-import com.jivesoftware.community.BlogPostResultFilter;
-import com.jivesoftware.community.Document;
-import com.jivesoftware.community.DocumentManager;
-import com.jivesoftware.community.DocumentState;
-import com.jivesoftware.community.ForumManager;
-import com.jivesoftware.community.ForumMessage;
-import com.jivesoftware.community.ForumThread;
-import com.jivesoftware.community.JiveGlobals;
-import com.jivesoftware.community.JiveIterator;
-import com.jivesoftware.community.JiveObject;
-import com.jivesoftware.community.JiveObjectLoader;
-import com.jivesoftware.community.ModerationFilter;
-import com.jivesoftware.community.NotFoundException;
-import com.jivesoftware.community.StatusLevelManager;
-import com.jivesoftware.community.UserAuthoredObject;
+import com.jivesoftware.community.*;
 import com.jivesoftware.community.audit.aop.Audit;
+import com.jivesoftware.community.browse.sort.BlogPostPublishDateSort;
+import com.jivesoftware.community.browse.util.BrowseQueryBuilderFactory;
+import com.jivesoftware.community.content.blogs.BlogPostBrowseQueryBuilder;
 import com.jivesoftware.community.favorites.Favorite;
 import com.jivesoftware.community.favorites.FavoriteManager;
 import com.jivesoftware.community.favorites.type.ExternalUrlObjectType;
@@ -48,12 +20,17 @@ import com.jivesoftware.community.favorites.type.FavoritableType;
 import com.jivesoftware.community.impl.dao.ApprovalWorkflowBean;
 import com.jivesoftware.community.moderation.JiveObjectModerator;
 import com.jivesoftware.community.moderation.ModerationItemException;
+import com.jivesoftware.community.statuslevel.StatusLevelManager;
+import org.apache.log4j.Logger;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
 
 /**
  * DB Implementation of {@link SpamManager}
- * 
+ *
  * @author Libor Krzyzanek
- * 
  */
 public class DbSpamManager implements SpamManager {
 
@@ -81,9 +58,11 @@ public class DbSpamManager implements SpamManager {
 
 	private FavoritableType externalUrlObjectType;
 
-	private final DocumentState[] documentStates = { DocumentState.PUBLISHED };
+	protected BrowseQueryBuilderFactory browseQueryBuilderFactory;
 
-	private final DocumentState[] documentStatesToResolve = { DocumentState.PENDING_APPROVAL };
+	private final DocumentState[] documentStates = {DocumentState.PUBLISHED};
+
+	private final DocumentState[] documentStatesToResolve = {DocumentState.PENDING_APPROVAL};
 
 	public int getReporterMinPoints() {
 		return JiveGlobals.getJiveIntProperty("spam.reporter.min_points", 0);
@@ -122,7 +101,7 @@ public class DbSpamManager implements SpamManager {
 
 		final Date reportDate = new Date();
 
-		JiveIterator<Document> docs = documentManager.getUserDocuments(spammer, documentStates);
+		Iterable<Document> docs = documentManager.getUserDocuments(spammer, documentStates);
 		for (Document document : docs) {
 			if (log.isTraceEnabled()) {
 				log.trace("Report spam of document: " + document.getDocumentID());
@@ -130,7 +109,7 @@ public class DbSpamManager implements SpamManager {
 			reportSpam(document, reporter, comment, reportDate);
 		}
 
-		JiveIterator<ForumMessage> messages = forumManager.getUserMessages(spammer);
+		Iterable<ForumMessage> messages = forumManager.getUserMessages(spammer);
 		for (ForumMessage message : messages) {
 			if (log.isTraceEnabled()) {
 				log.trace("Report spam of message: " + message.getID() + ", threadId: " + message.getForumThreadID());
@@ -139,19 +118,23 @@ public class DbSpamManager implements SpamManager {
 			reportSpam(message, reporter, comment, reportDate);
 		}
 
-		JiveIterator<Blog> blogs = blogManager.getBlogs(spammer);
+		List<Blog> blogs = blogManager.getExplicitlyEntitledBlogs(spammer);
 		for (Blog blog : blogs) {
-			JiveIterator<BlogPost> blogPosts = blog.getBlogPosts(BlogPostResultFilter.createDefaultFilter());
-			for (BlogPost blogPost : blogPosts) {
-				if (log.isTraceEnabled()) {
-					log.trace("Report spam Blog post: " + blogPost.getID());
+			if (blog.isUserBlog()) {
+				Iterator<BlogPost> blogPosts = blogManager.getBlogPosts(blog);
+				while (blogPosts.hasNext()) {
+					BlogPost blogPost = blogPosts.next();
+					if (log.isTraceEnabled()) {
+						log.trace("Report spam for Blog post, id: " + blogPost.getID());
+					}
+					reportSpam(blogPost, reporter, comment, reportDate);
 				}
-				reportSpam(blogPost, reporter, comment, reportDate);
 			}
 		}
-		JiveIterator<Favorite> favorites = favoriteManager.getUserFavorites(spammer,
+		Iterator<Favorite> favorites = favoriteManager.getUserFavorites(spammer,
 				Sets.newHashSet(externalUrlObjectType));
-		for (Favorite favorite : favorites) {
+		while (favorites.hasNext()) {
+			Favorite favorite = favorites.next();
 			JiveObject favoritedObject = favorite.getObjectFavorite().getFavoritedObject();
 			if (log.isTraceEnabled()) {
 				log.trace("Report spam Favorite (Bookmark) to external URL: " + favorite.getID());
@@ -170,7 +153,8 @@ public class DbSpamManager implements SpamManager {
 			log.info("Resolve SPAM reports on all content of of this user: " + spammer);
 		}
 
-		JiveIterator<Document> docs = documentManager.getUserDocuments(spammer, documentStatesToResolve);
+		log.debug("Resolve Documents");
+		Iterable<Document> docs = documentManager.getUserDocuments(spammer, documentStatesToResolve);
 		for (Document document : docs) {
 			if (log.isTraceEnabled()) {
 				log.trace("Resolve Report spam of document: " + document.getDocumentID());
@@ -178,9 +162,13 @@ public class DbSpamManager implements SpamManager {
 			resolveSpamReport(document, moderator);
 		}
 
-		JiveIterator<ForumMessage> messages = forumManager.getUserMessages(spammer,
-				ModerationFilter.createAbuseOnlyFilter());
+		log.debug("Resolve Threads");
+		ThreadResultFilter moderationFilter = ThreadResultFilter.createDefaultUserMessagesFilter();
+		moderationFilter.setStatus(JiveContentObject.Status.ABUSE_HIDDEN);
+
+		Iterable<ForumMessage> messages = forumManager.getUserMessages(spammer, moderationFilter);
 		List<Long> resolvedThreads = new ArrayList<Long>();
+
 		for (ForumMessage message : messages) {
 			if (log.isTraceEnabled()) {
 				log.trace("Resolve Report spam of message: " + message.getID() + ", threadId: "
@@ -199,25 +187,29 @@ public class DbSpamManager implements SpamManager {
 			resolveSpamReport(message, moderator);
 		}
 
-		JiveIterator<Blog> blogs = blogManager.getBlogs(spammer);
-		BlogPostResultFilter blogFilter = BlogPostResultFilter.createDefaultFilter();
-		blogFilter.setOnlyWaitingMod(false);
-		blogFilter.setOnlyDraft(false);
-		blogFilter.setOnlyPublished(false);
-		blogFilter.setUserID(spammer.getID());
+		log.debug("Resolve Blogs");
+		Iterable<Blog> blogs = blogManager.getExplicitlyEntitledBlogs(spammer);
 		for (Blog blog : blogs) {
-			JiveIterator<BlogPost> blogPosts = blog.getBlogPosts(blogFilter);
-			for (BlogPost blogPost : blogPosts) {
-				if (log.isTraceEnabled()) {
-					log.trace("Resolve Report spam Blog post: " + blogPost.getID());
+			if (log.isTraceEnabled()) {
+				log.trace("Processing blog: " + blog.getName());
+			}
+			if (blog.isUserBlog()) {
+				Iterator<BlogPost> blogPosts = getBlogPosts(blog, JiveContentObject.Status.ABUSE_HIDDEN);
+				while (blogPosts.hasNext()) {
+					BlogPost blogPost = blogPosts.next();
+					if (log.isTraceEnabled()) {
+						log.trace("Resolve Report spam Blog post: " + blogPost.getID());
+					}
+					resolveSpamReport(blogPost, moderator);
 				}
-				resolveSpamReport(blogPost, moderator);
 			}
 		}
 
-		JiveIterator<Favorite> favorites = favoriteManager.getUserFavorites(spammer,
+		log.trace("Resolve Bookmarks");
+		Iterator<Favorite> favorites = favoriteManager.getUserFavorites(spammer,
 				Sets.newHashSet(externalUrlObjectType));
-		for (Favorite favorite : favorites) {
+		while (favorites.hasNext()) {
+			Favorite favorite = favorites.next();
 			JiveObject favoritedObject = favorite.getObjectFavorite().getFavoritedObject();
 			if (log.isTraceEnabled()) {
 				log.trace("Resolve Report spam Favorite (Bookmark) to external URL: " + favorite.getID());
@@ -227,6 +219,12 @@ public class DbSpamManager implements SpamManager {
 			resolveSpamReport(favoritedObject, moderator);
 		}
 
+	}
+
+	protected Iterator<BlogPost> getBlogPosts(JiveContainer container, JiveContentObject.Status... statuses) {
+		BlogPostBrowseQueryBuilder blogPostBrowseQueryBuilder = browseQueryBuilderFactory.getBlogPostBrowseQueryBuilder();
+		blogPostBrowseQueryBuilder.setContainer(container).setStatuses(statuses);
+		return blogPostBrowseQueryBuilder.getContentIterator(0, Integer.MAX_VALUE, new BlogPostPublishDateSort());
 	}
 
 	@Override
@@ -242,13 +240,15 @@ public class DbSpamManager implements SpamManager {
 	}
 
 	public void reportSpam(JiveObject jiveObject, User reporter, String comment, Date reportDate) {
+		// Similar to MessageAbuseAction#execute()
 		AbuseReport abuseReport = new AbuseReport();
-		abuseReport.setAbuseType(AbuseType.SPAM);
+		abuseReport.setAbuseType(AbuseType.spam);
 		abuseReport.setObjectID(jiveObject.getID());
 		abuseReport.setObjectType(jiveObject.getObjectType());
 		abuseReport.setUser(reporter);
 		abuseReport.setReportDate(reportDate);
 		abuseReport.setComment(comment);
+		abuseReport.setJiveObject(jiveObject);
 
 		abuseManager.reportAbuse(abuseReport);
 	}
@@ -259,17 +259,19 @@ public class DbSpamManager implements SpamManager {
 				JiveObjectModerator.Type.ABUSE);
 		for (ApprovalWorkflowBean workflow : workflows) {
 			try {
-				jiveObjectModerator.approve(workflow.getWorkflowID(), jiveObject, moderator,
-						"Spam report: Content is not spam");
+				jiveObjectModerator.approve(workflow.getWorkflowID(), jiveObject, moderator, "Spam report: Content is not spam");
 			} catch (ModerationItemException e) {
 				log.error("Cannot approve workflow, id: " + workflow.getWorkflowID() + ", message: " + e.getMessage());
+				if (log.isTraceEnabled()) {
+					log.error("Moderation exception", e);
+				}
 			}
 		}
 	}
 
 	@Override
 	public Set<User> getUnapprovedSpammers(User moderator) {
-		List<ApprovalWorkflowBean> workflows = approvalManager.getUnApprovedWorkflowBeans(moderator.getID(),
+		List<ApprovalWorkflowBean> workflows = approvalManager.getUnApprovedWorkflowBeans(moderator.getID(), -1,
 				JiveObjectModerator.Type.ABUSE);
 		Set<User> users = new HashSet<User>();
 		for (ApprovalWorkflowBean approvalWorkflowBean : workflows) {
@@ -279,7 +281,7 @@ public class DbSpamManager implements SpamManager {
 				if (jiveObject instanceof UserAuthoredObject) {
 					if (log.isTraceEnabled()) {
 						log.trace("Adding " + ((UserAuthoredObject) jiveObject).getUser().getUsername()
-								+ "user from object " + jiveObject);
+								+ " user from object " + jiveObject);
 					}
 					users.add(((UserAuthoredObject) jiveObject).getUser());
 				}
@@ -334,4 +336,7 @@ public class DbSpamManager implements SpamManager {
 		this.externalUrlObjectType = externalUrlObjectType;
 	}
 
+	public void setBrowseQueryBuilderFactory(BrowseQueryBuilderFactory browseQueryBuilderFactory) {
+		this.browseQueryBuilderFactory = browseQueryBuilderFactory;
+	}
 }

@@ -33,7 +33,7 @@ public class ReportSpamAction extends MessageAbuseAction {
 
 	@Override
 	public int getAbuseType() {
-		return AbuseType.SPAM.getKey();
+		return AbuseType.spam.getKey();
 	}
 
 	@Override
@@ -50,11 +50,11 @@ public class ReportSpamAction extends MessageAbuseAction {
 			return SUCCESS;
 		}
 
-		JiveObject jiveObject = null;
+		JiveObject jiveObject;
 		try {
 			jiveObject = getJiveObjectLoader().getJiveObject(getObjectType(), getObjectID());
 		} catch (NotFoundException e) {
-			// should not occur because it's already catched in super.execute();
+			// should not occur because it's already caught in super.execute();
 			throw new RuntimeException(e);
 		}
 

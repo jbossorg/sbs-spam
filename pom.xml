@@ -5,12 +5,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.jboss.sbs</groupId>
 	<artifactId>spam</artifactId>
-	<name>SBS plugin: SPAM</name>
+	<name>Jive plugin: SPAM</name>
 	<description>Plugin helps spam handling</description>
-	<version>1.4.0</version>
-
+	<url>https://github.com/jbossorg/sbs-spam</url>
+	<version>2.0.0</version>
 
 	<inceptionYear>2012</inceptionYear>
+
 	<licenses>
 		<license>
 			<name>The Apache Software License, Version 2.0</name>
@@ -32,16 +33,22 @@
 
 	<developers>
 		<developer>
+			<id>lkrzyzan</id>
 			<name>Libor Krzyzanek</name>
 			<organization>Red Hat</organization>
-			<id>lkrzyzan</id>
+			<organizationUrl>http://www.redhat.com</organizationUrl>
+			<timezone>+1</timezone>
+			<url>http://community.jboss.org/people/lkrzyzanek</url>
 		</developer>
 	</developers>
 
+
 	<properties>
-		<sbs.version>4.5.6.0</sbs.version>
-		<java.version>1.6</java.version>
-		<final.name>${project.artifactId}-${project.version}-${sbs.version}</final.name>
+		<jive.version>6.0.2.0</jive.version>
+		<jive.min.version>6.0.0.0</jive.min.version>
+		<jive.max.version>10.10.10.10</jive.max.version>
+		<final.name>${project.artifactId}-${project.version}-${jive.version}</final.name>
+		<build.project.name>${project.artifactId}</build.project.name>
 	</properties>
 
 	<build>
@@ -56,44 +63,33 @@
 					<target>1.6</target>
 				</configuration>
 			</plugin>
-			<!-- Weave transactions into the plugin -->
+			<!-- Weave aspects into the plugin -->
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>aspectj-maven-plugin</artifactId>
 				<version>1.3</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.aspectj</groupId>
+						<artifactId>aspectjtools</artifactId>
+						<version>1.6.9</version>
+					</dependency>
+				</dependencies>
 				<configuration>
-					<aspectLibraries>
-						<aspectLibrary>
-							<groupId>org.springframework</groupId>
-							<artifactId>spring-aspects</artifactId>
-						</aspectLibrary>
-					</aspectLibraries>
-					<source>${java.version}</source>
+					<source>1.6</source>
+					<target>1.6</target>
 				</configuration>
 				<executions>
 					<execution>
 						<goals>
 							<goal>compile</goal>
+							<goal>test-compile</goal>
 						</goals>
 					</execution>
 				</executions>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.1.2</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
 					<execution>
@@ -117,9 +113,7 @@
 				<version>1.6</version>
 				<executions>
 					<execution>
-						<!-- Unpackages this SBS plugin. That way it can be used in conjunction with the -DpluginDirs= property, which bypasses 
-							the standard plugin installation (which happens via the admin console), by pointing to exploded plugin jar created by this. -->
-						<id>explode-sbs-plugin</id>
+						<id>explode-jive-plugin</id>
 						<phase>package</phase>
 						<goals>
 							<goal>run</goal>
@@ -134,84 +128,102 @@
 					</execution>
 				</executions>
 			</plugin>
-
-
-			<!-- For unit testing -->
 			<plugin>
-				<artifactId>maven-surefire-plugin</artifactId>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>2.1.2</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!--  Setup of war file for functional test runs -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-war</id>
+						<phase>pre-integration-test</phase>
+						<goals>
+							<goal>unpack</goal>
+						</goals>
+					</execution>
+				</executions>
 				<configuration>
-					<excludes>
-						<exclude>**/selenium/*Test.java</exclude>
-					</excludes>
+					<artifactItems>
+						<artifactItem>
+							<groupId>com.jivesoftware</groupId>
+							<artifactId>jive</artifactId>
+							<type>war</type>
+							<overWrite>false</overWrite>
+						</artifactItem>
+					</artifactItems>
+					<outputDirectory>${project.build.directory}/war</outputDirectory>
 				</configuration>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-eclipse-plugin</artifactId>
-				<version>2.8</version>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<!-- <version>${maven-surefire-plugin.version}</version> -->
 				<configuration>
-					<additionalProjectnatures>
-						<projectnature>org.springframework.ide.eclipse.core.springnature</projectnature>
-					</additionalProjectnatures>
+					<skip>true</skip>
 				</configuration>
+				<executions>
+					<execution>
+						<id>unit</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<skip>false</skip>
+							<excludes>
+								<exclude>**/selenium/*Test.java</exclude>
+								<exclude>**/*IntTest.java</exclude>
+							</excludes>
+							<includes>
+								<include>**/*Test.java</include>
+								<include>**/*TestCase.java</include>
+							</includes>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
-
 	<dependencies>
 		<dependency>
 			<groupId>com.jivesoftware</groupId>
-			<artifactId>jive-sbs-employee</artifactId>
-			<version>${sbs.version}</version>
+			<artifactId>jive-core</artifactId>
+			<version>${jive.version}</version>
 			<type>jar</type>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.jivesoftware</groupId>
-			<artifactId>jive-sbs-employee-all</artifactId>
-			<version>${sbs.version}</version>
-			<type>pom</type>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>servlet-api</artifactId>
-			<version>2.3</version>
+			<version>2.5</version>
 			<type>jar</type>
 			<scope>provided</scope>
 		</dependency>
-		<!-- The following dependencies are for unit testing -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-aspects</artifactId>
+			<version>3.0.3.RELEASE</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.4</version>
+			<version>4.8</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.objenesis</groupId>
-			<artifactId>objenesis</artifactId>
-			<version>1.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>cglib</groupId>
-			<artifactId>cglib</artifactId>
-			<version>2.1</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.jmock</groupId>
-			<artifactId>jmock-junit4</artifactId>
-			<version>2.4.0</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>com.mockrunner</groupId>
-			<artifactId>mockrunner</artifactId>
-			<version>0.3.1</version>
-			<scope>test</scope>
-		</dependency>
-
 	</dependencies>
 
 	<profiles>

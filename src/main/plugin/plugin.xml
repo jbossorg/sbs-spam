@@ -1,10 +1,12 @@
 <plugin xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.jivesoftware.com/schemas/clearspace/2_5/plugin.xsd">
-	<name>spam</name>
-	<description>Plugin helps handling SPAM</description>
-	<author>JBoss Community</author>
-	<version>1.4.0</version>
-	<minServerVersion>4.5.6</minServerVersion>
-	<licenseType>apache</licenseType>
+	<name>${project.artifactId}</name>
+	<description>${project.description}</description>
+	<author>${project.developers[0].name}</author>
+	<authorURL>${project.developers[0].url}</authorURL>
+	<pluginURL>${project.url}</pluginURL>
+	<version>${project.version}</version>
+	<minServerVersion>${jive.min.version}</minServerVersion>
+	<maxServerVersion>${jive.max.version}</maxServerVersion>
 
 	<!-- Plugin class -->
 	<class>org.jboss.sbs.spam.SpamPlugin</class>

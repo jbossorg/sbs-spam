@@ -24,6 +24,7 @@ http://www.directwebremoting.org/schema/spring-dwr http://www.directwebremoting.
 		<property name="approvalManager" ref="approvalManager" />
 		<property name="jiveObjectLoader" ref="jiveObjectLoader" />
 		<property name="externalUrlObjectType" ref="externalUrlObjectType" />
+		<property name="browseQueryBuilderFactory" ref="browseQueryBuilderFactoryImpl" />
 	</bean>
 
 </beans>
