@@ -98,7 +98,30 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 	public void invokeInterceptor(JiveObject object, Type type) throws RejectedException {
 		if (object instanceof JiveContentObject) {
 			JiveContentObject content = (JiveContentObject) object;
-			User author = content.getUser();
+			User author = null;
+			if (object.getObjectType() == JiveConstants.DOCUMENT) {
+				// Issue #14
+				// For document in Jive 6 can be checked only initial version.
+				Document document = (Document) object;
+				if (log.isTraceEnabled()) {
+					log.trace("Document: " + document);
+				}
+				if (document.getVersionID() <= 0) {
+					author = document.getUser();
+				} else {
+					// There is no way how to get who did this edit.
+					// document.getLatestVersionAuthor(); returns first author though.
+					return;
+				}
+			} else {
+				author = content.getUser();
+			}
+
+			if (log.isDebugEnabled()) {
+				log.debug("Author: " + author);
+			}
+
+
 			if (author != null && !author.isAnonymous()) {
 				long points = JiveApplication.getContext().getStatusLevelManager().getPointLevel(author);
 
@@ -107,7 +130,7 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 							+ pointsLevel + ", emailDomainWhitelist: " + emailDomainWhitelist);
 				}
 
-				if (emailDomainAllowed != null && emailDomainAllowed.length > 0) {
+				if (emailDomainAllowed != null && emailDomainAllowed.length > 0 && author.getEmail() != null) {
 					for (String emailAllowed : emailDomainAllowed) {
 						if (author.getEmail().endsWith(emailAllowed)) {
 							log.debug("Author has e-mail on domain whitelist. Will not be affected by this interceptor.");
