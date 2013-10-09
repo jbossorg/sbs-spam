@@ -44,7 +44,7 @@
 
 
 	<properties>
-		<jive.version>6.0.2.0</jive.version>
+		<jive.version>6.0.3.0</jive.version>
 		<jive.min.version>6.0.0.0</jive.min.version>
 		<jive.max.version>10.10.10.10</jive.max.version>
 		<final.name>${project.artifactId}-${project.version}-${jive.version}</final.name>
