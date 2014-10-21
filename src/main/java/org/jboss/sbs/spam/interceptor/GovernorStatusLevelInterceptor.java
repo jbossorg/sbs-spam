@@ -5,9 +5,25 @@
  */
 package org.jboss.sbs.spam.interceptor;
 
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.regex.Pattern;
+
+import com.jivesoftware.base.Group;
+import com.jivesoftware.base.GroupManager;
+import com.jivesoftware.base.GroupNotFoundException;
 import com.jivesoftware.base.User;
 import com.jivesoftware.cache.Cache;
-import com.jivesoftware.community.*;
+import com.jivesoftware.community.Document;
+import com.jivesoftware.community.JiveConstants;
+import com.jivesoftware.community.JiveContentObject;
+import com.jivesoftware.community.JiveInterceptor;
+import com.jivesoftware.community.JiveObject;
+import com.jivesoftware.community.RejectedException;
 import com.jivesoftware.community.annotations.PropertyNames;
 import com.jivesoftware.community.cache.CacheFactory;
 import com.jivesoftware.community.cache.CacheParameters;
@@ -16,20 +32,13 @@ import com.jivesoftware.community.lifecycle.JiveApplication;
 import com.jivesoftware.util.StringUtils;
 import org.apache.log4j.Logger;
 
-import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.regex.Pattern;
-
 /**
  * Extended implementation of {@link GovernorInterceptor} which allows users with better status level to have no post
  * time restriction
  *
  * @author Libor Krzyzanek
  */
-@PropertyNames({"postInterval", "pointsLevel", "rejectionMessage", "emailDomainWhitelist"})
+@PropertyNames({"postInterval", "pointsLevel", "rejectionMessage", "emailDomainWhitelist", "securityGroupWhiteList"})
 public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 
 	private static final Logger log = Logger.getLogger(GovernorStatusLevelInterceptor.class);
@@ -43,6 +52,10 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 	protected String emailDomainWhitelist;
 
 	protected String[] emailDomainAllowed;
+
+	protected String securityGroupWhiteList;
+
+	protected Long[] securityGroupsAllowed;
 
 	private String cacheName;
 
@@ -127,9 +140,11 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 
 				if (log.isTraceEnabled()) {
 					log.trace("Author '" + author.getUsername() + "' has points: " + points + ". Points level is: "
-							+ pointsLevel + ", emailDomainWhitelist: " + emailDomainWhitelist);
+							+ pointsLevel + ", emailDomainWhitelist: " + emailDomainWhitelist
+							+ ", securityGroupsAllowed: " + Arrays.toString(securityGroupsAllowed));
 				}
 
+				// 1. Check email domain whitelist
 				if (emailDomainAllowed != null && emailDomainAllowed.length > 0 && author.getEmail() != null) {
 					for (String emailAllowed : emailDomainAllowed) {
 						if (author.getEmail().endsWith(emailAllowed)) {
@@ -138,12 +153,32 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 						}
 					}
 				}
-
-
+				// 2. Check points
 				if (points > pointsLevel) {
 					log.debug("Author has more points than limit. Will not be affected by this interceptor.");
 					return;
 				}
+
+				// 3. Check security group membership
+				if (securityGroupsAllowed != null && securityGroupsAllowed.length > 0) {
+					GroupManager groupManager = JiveApplication.getContext().getGroupManager();
+					for (Long groupId : securityGroupsAllowed) {
+						if (log.isTraceEnabled()) {
+							log.trace("Going to check author's group membership of groupId: " + groupId);
+						}
+						try {
+							Group group = groupManager.getGroup(groupId);
+							if (group.isMember(author)) {
+								log.debug("Author is member of whitelisted security group");
+								return;
+							}
+						} catch (GroupNotFoundException e) {
+							log.error("Wrong definition of security group whitelist. Group doesn't exist. GroupId: " + groupId);
+						}
+					}
+
+				}
+
 				log.debug("Going to check the post limit.");
 				processContent(author.getID(), content);
 			}
@@ -195,6 +230,39 @@ public class GovernorStatusLevelInterceptor implements JiveInterceptor {
 			emailDomainAllowed = StringUtils.split(emailDomainWhitelist);
 		} else {
 			emailDomainAllowed = null;
+		}
+	}
+
+	public String getSecurityGroupWhiteList() {
+		return securityGroupWhiteList;
+	}
+
+	public void setSecurityGroupWhiteList(String securityGroupWhiteList) throws Exception {
+		if (log.isTraceEnabled()) {
+			log.trace("Setting securityGroupWhiteList to: " + securityGroupWhiteList);
+		}
+		this.securityGroupWhiteList = securityGroupWhiteList;
+		if (StringUtils.isNotBlank(securityGroupWhiteList)) {
+			String[] ids = StringUtils.split(securityGroupWhiteList);
+			securityGroupsAllowed = new Long[ids.length];
+
+			GroupManager groupManager = JiveApplication.getContext().getGroupManager();
+			for (int i = 0; i < ids.length; i++) {
+				String id = ids[i];
+				try {
+					Long groupId = Long.parseLong(id);
+					// Check if group exists
+					groupManager.getGroup(groupId);
+					securityGroupsAllowed[i] = groupId;
+				} catch (Exception e) {
+					securityGroupsAllowed = null;
+					this.securityGroupWhiteList = null;
+					log.error("Bad configuration. Group not found. Id: " + id, e);
+					throw e;
+				}
+			}
+		} else {
+			securityGroupsAllowed = null;
 		}
 	}
 

@@ -1,5 +1,5 @@
-SBS Plugin - SPAM
-=================
+Jive SBS Plugin - SPAM
+======================
 
 Report Spam link
 ----------------
@@ -12,7 +12,7 @@ Main features are:
 3. If user doesn't have enough points then only standard "report abuse" to particular one document is reported
 4. Moderator is notified about spam content in standard way like "report abuse" does.
 
-Saying all users's content it means:
+Saying all user's content it means:
 
 * Document
 * Forum thread/message
@@ -42,12 +42,13 @@ After this installation you can add this interceptor to the list of active inter
 
 These properties can be configured in interceptor:
 * Post Interval
-* Poinst Level
+* Points Level
 * Rejection Message
 * E-mail white-list
+* Security group white-list
 
 No follow links filter
 ----------------------
-Post processing filter which adds re="nofollow" attribute to all links except those listed in white list.
+Post processing filter which adds `re="nofollow"` attribute to all links except those listed in white list.
 It's enabled by default.
-If you want to disable it just go to SBS admin console > Spaces > Settings > Filter and Macros and turn off this filter
+If you want to disable it just go to `Admin console > Spaces > Settings > Filter and Macros` and turn off this filter
