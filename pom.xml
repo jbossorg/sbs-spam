@@ -5,10 +5,16 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.jboss.sbs</groupId>
 	<artifactId>spam</artifactId>
-	<name>Jive plugin: SPAM</name>
+	<name>spam</name>
 	<description>Plugin helps spam handling</description>
 	<url>https://github.com/jbossorg/sbs-spam</url>
-	<version>2.1.0</version>
+	<version>7.0.0</version>
+
+	<parent>
+		<groupId>com.jivesoftware.maven</groupId>
+		<artifactId>jive-parent-pom</artifactId>
+		<version>7.0.3.1-0</version>
+	</parent>
 
 	<inceptionYear>2012</inceptionYear>
 
@@ -38,213 +44,64 @@
 			<organization>Red Hat</organization>
 			<organizationUrl>http://www.redhat.com</organizationUrl>
 			<timezone>+1</timezone>
-			<url>http://community.jboss.org/people/lkrzyzanek</url>
+			<url>https://developer.jboss.org/people/lkrzyzanek</url>
 		</developer>
 	</developers>
 
-
 	<properties>
-		<jive.version>6.0.3.0</jive.version>
-		<jive.min.version>6.0.0.0</jive.min.version>
+		<jive.min.version>${jive.version.min}</jive.min.version>
 		<jive.max.version>10.10.10.10</jive.max.version>
-		<final.name>${project.artifactId}-${project.version}-${jive.version}</final.name>
-		<build.project.name>${project.artifactId}</build.project.name>
 	</properties>
 
 	<build>
-		<finalName>${final.name}</finalName>
+		<outputDirectory>${project.build.directory}/classes</outputDirectory>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
-				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
-				</configuration>
+			</plugin>
+			<!--
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>aspectj-maven-plugin</artifactId>
+			</plugin>
+			-->
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>assembly</id>
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<appendAssemblyId>false</appendAssemblyId>
-							<descriptors>
-								<descriptor>${basedir}/src/main/assembly/assembly-plugin.xml</descriptor>
-							</descriptors>
-						</configuration>
-					</execution>
-				</executions>
+				<artifactId>maven-jar-plugin</artifactId>
 			</plugin>
+			<!-- Unpackages this Jive plugin. Used in conjunction with the -DpluginDirs= property -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.6</version>
-				<executions>
-					<execution>
-						<id>explode-jive-plugin</id>
-						<phase>package</phase>
-						<goals>
-							<goal>run</goal>
-						</goals>
-						<configuration>
-							<tasks>
-								<mkdir dir="${basedir}/target/${final.name}"/>
-								<unjar src="${basedir}/target/${final.name}.jar"
-									   dest="${basedir}/target/${final.name}"/>
-							</tasks>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>2.1.2</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<!--  Setup of war file for functional test runs -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>unpack-war</id>
-						<phase>pre-integration-test</phase>
-						<goals>
-							<goal>unpack</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<artifactItems>
-						<artifactItem>
-							<groupId>com.jivesoftware</groupId>
-							<artifactId>jive</artifactId>
-							<type>war</type>
-							<overWrite>false</overWrite>
-						</artifactItem>
-					</artifactItems>
-					<outputDirectory>${project.build.directory}/war</outputDirectory>
-				</configuration>
-			</plugin>
-			<plugin>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<!-- <version>${maven-surefire-plugin.version}</version> -->
-				<configuration>
-					<skip>true</skip>
-				</configuration>
-				<executions>
-					<execution>
-						<id>unit</id>
-						<phase>test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<skip>false</skip>
-							<excludes>
-								<exclude>**/selenium/*Test.java</exclude>
-								<exclude>**/*IntTest.java</exclude>
-							</excludes>
-							<includes>
-								<include>**/*Test.java</include>
-								<include>**/*TestCase.java</include>
-							</includes>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
+
+		<!-- Has to be version 2.2-beta-5 otherwise developers[0] filtering doesn't work -->
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<version>2.2-beta-5</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
+
 	<dependencies>
 		<dependency>
 			<groupId>com.jivesoftware</groupId>
 			<artifactId>jive-core</artifactId>
-			<version>${jive.version}</version>
-			<type>jar</type>
-			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>servlet-api</artifactId>
-			<version>2.5</version>
-			<type>jar</type>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework</groupId>
-			<artifactId>spring-aspects</artifactId>
-			<version>3.0.3.RELEASE</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.8</version>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<profiles>
-		<profile>
-			<id>jive.archiva</id>
-			<!-- To access these repositories you need to have access defined in .m2/settings.xml in server section -->
-			<!-- How to: https://community.jivesoftware.com/docs/DOC-38298 -->
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
-
-			<repositories>
-				<repository>
-					<id>jive.internal</id>
-					<name>Jive's Repository</name>
-					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.internal</url>
-				</repository>
-				<repository>
-					<id>jive.snapshots</id>
-					<name>Jive's Repository</name>
-					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.snapshots</url>
-				</repository>
-			</repositories>
-
-			<pluginRepositories>
-				<pluginRepository>
-					<id>jive.internal</id>
-					<name>Jive's Repository</name>
-					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.internal</url>
-				</pluginRepository>
-				<pluginRepository>
-					<id>jive.snapshots</id>
-					<name>Jive's Repository</name>
-					<url>https://maven-secure.jivesoftware.com/archiva/repository/jive.snapshots</url>
-				</pluginRepository>
-			</pluginRepositories>
-
-			<properties>
-				<tomcat6.home></tomcat6.home>
-				<cargo.wait>false</cargo.wait>
-				<jive.setup>true</jive.setup>
-				<jive.devMode>false</jive.devMode>
-				<pluginDirs>null</pluginDirs>
-			</properties>
-		</profile>
-	</profiles>
-
 
 </project>
