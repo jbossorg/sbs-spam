@@ -8,6 +8,7 @@ package org.jboss.sbs.spam;
 import java.util.Set;
 
 import com.jivesoftware.base.User;
+import com.jivesoftware.community.JiveContentObject;
 import com.jivesoftware.community.JiveObject;
 
 /**
@@ -68,5 +69,8 @@ public interface SpamManager {
 	 * @return
 	 */
 	public Set<User> getUnapprovedSpammers(User moderator);
+	
+	
+	public boolean hasSomeContent(User author, JiveContentObject contentObject);
 
 }

@@ -6,22 +6,34 @@
 package org.jboss.sbs.spam;
 
 import com.google.common.collect.Sets;
+import com.jivesoftware.api.core.v3.doclet.doc;
 import com.jivesoftware.base.User;
 import com.jivesoftware.base.UserManager;
 import com.jivesoftware.community.*;
 import com.jivesoftware.community.audit.aop.Audit;
 import com.jivesoftware.community.browse.sort.BlogPostPublishDateSort;
+import com.jivesoftware.community.browse.sort.ModificationDateSort;
 import com.jivesoftware.community.browse.util.BrowseQueryBuilderFactory;
 import com.jivesoftware.community.content.blogs.BlogPostBrowseQueryBuilder;
+import com.jivesoftware.community.content.threads.ThreadBrowseQueryBuilder;
 import com.jivesoftware.community.favorites.Favorite;
 import com.jivesoftware.community.favorites.FavoriteManager;
 import com.jivesoftware.community.favorites.type.ExternalUrlObjectType;
 import com.jivesoftware.community.favorites.type.FavoritableType;
+import com.jivesoftware.community.impl.DbDocumentManager;
+import com.jivesoftware.community.impl.DbForumManager;
+import com.jivesoftware.community.impl.UserContainerManagerImpl;
 import com.jivesoftware.community.impl.dao.ApprovalWorkflowBean;
+import com.jivesoftware.community.lifecycle.JiveApplication;
 import com.jivesoftware.community.moderation.JiveObjectModerator;
+import com.jivesoftware.community.moderation.ModerationHelper;
 import com.jivesoftware.community.moderation.ModerationItemException;
+import com.jivesoftware.community.objecttype.ContainableType;
+import com.jivesoftware.community.objecttype.ContainableTypeManager;
 import com.jivesoftware.community.statuslevel.StatusLevelManager;
+
 import org.apache.log4j.Logger;
+import org.openrdf.sail.rdbms.evaluation.QueryBuilderFactory;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -291,7 +303,59 @@ public class DbSpamManager implements SpamManager {
 		}
 		return users;
 	}
-
+	
+	@Override
+	public boolean hasSomeContent(User author, JiveContentObject newObject){
+		//check whether there is any content that User author created before
+		
+		//check for Messages and Threads (root discussions and questions):
+		int messagesCount = forumManager.getUserMessageCount(author);
+		log.info("hasSomeContent MessagesSize: "+messagesCount);
+		
+		//moderation-safe message addition:
+		//for each user-added message check whether the message is moderated
+		//if all are moderated, send a new content to moderation too
+		ModerationHelper moderationHelper = JiveApplication.getContext().getModerationHelper();
+		
+		if(messagesCount>0){
+			for(ForumMessage m:forumManager.getUserMessages(author)){
+				
+				//forumManager.getUserMessages() might also return message being inserted when triggering interceptor
+				if(!moderationHelper.isInModeration(newObject) && !m.equals(newObject)){
+					log.debug("message "+m.getPlainSubject()+" does not equal to the message to be inserted and is not yet moderated");
+					return true;
+				}
+			}
+		}
+		
+		//check for documents
+		int documentsCount = documentManager.getUserDocumentCount(author, new DocumentState[]{DocumentState.PUBLISHED});
+		log.info("hasSomeContent: Documents size: "+documentsCount);
+		if(documentsCount>0){
+			return true;
+		}
+		
+		int blogCount = 0;
+		for(Blog b: blogManager.getExplicitlyEntitledBlogs(author)){
+			if(b.getContributors().contains(author))
+			{
+				blogCount++;
+				return true;
+			}
+		}
+		log.info("hasSomeContent BlogSize: 0");
+		
+		//Do not trigger interceptor:
+		//Poll, File, Task, Bookmark, Status update
+		
+		if(log.isDebugEnabled()){
+			int result = documentsCount + messagesCount + blogCount;
+			log.debug("User "+author.getName()+" total content size: "+result);
+		}
+		
+		return false;
+	}
+	
 	public void setAbuseManager(AbuseManager abuseManager) {
 		this.abuseManager = abuseManager;
 	}
