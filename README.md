@@ -52,3 +52,23 @@ No follow links filter
 Post processing filter which adds `re="nofollow"` attribute to all links except those listed in white list.
 It's enabled by default.
 If you want to disable it just go to `Admin console > Spaces > Settings > Filter and Macros` and turn off this filter
+
+
+First Post Moderation
+---------------------
+First Post Moderation interceptor allows to automatically send the first content of a user to moderation. Once the new user attempts to post a Document, Blog post, Forum message or new thread for the first time, it sends the content to be moderated by administrator.
+
+The interceptor excludes the content that is already in moderation, so as long as no user's content has been approved by administrator, all the new content produced by the user will be sent to moderation.
+
+### Installation ###
+First Post Moderation is implemented as standard SBS interceptor. You will need to install it similarly to previous:
+Go to SBS admin console and then navigate to Spaces > Settings > Interceptor
+Into the field `Class Name` put this value: `org.jboss.sbs.spam.interceptor.ModerateOnFirstPostInterceptor` and hit Add Interceptor.
+
+After that you can add this interceptor to the list of active interceptors in standard way.
+
+This interceptor does not contain any configurable properties.
+
+
+
+
