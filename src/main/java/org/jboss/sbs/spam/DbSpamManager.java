@@ -5,39 +5,55 @@
  */
 package org.jboss.sbs.spam;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.log4j.Logger;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.google.common.collect.Sets;
-import com.jivesoftware.api.core.v3.doclet.doc;
 import com.jivesoftware.base.User;
 import com.jivesoftware.base.UserManager;
-import com.jivesoftware.community.*;
+import com.jivesoftware.community.AbuseManager;
+import com.jivesoftware.community.AbuseReport;
+import com.jivesoftware.community.AbuseType;
+import com.jivesoftware.community.ApprovalManager;
+import com.jivesoftware.community.Blog;
+import com.jivesoftware.community.BlogManager;
+import com.jivesoftware.community.BlogPost;
+import com.jivesoftware.community.Document;
+import com.jivesoftware.community.DocumentManager;
+import com.jivesoftware.community.DocumentState;
+import com.jivesoftware.community.ForumManager;
+import com.jivesoftware.community.ForumMessage;
+import com.jivesoftware.community.ForumThread;
+import com.jivesoftware.community.JiveContainer;
+import com.jivesoftware.community.JiveContentObject;
+import com.jivesoftware.community.JiveGlobals;
+import com.jivesoftware.community.JiveObject;
+import com.jivesoftware.community.JiveObjectLoader;
+import com.jivesoftware.community.NotFoundException;
+import com.jivesoftware.community.ThreadResultFilter;
+import com.jivesoftware.community.UserAuthoredObject;
 import com.jivesoftware.community.audit.aop.Audit;
 import com.jivesoftware.community.browse.sort.BlogPostPublishDateSort;
-import com.jivesoftware.community.browse.sort.ModificationDateSort;
 import com.jivesoftware.community.browse.util.BrowseQueryBuilderFactory;
 import com.jivesoftware.community.content.blogs.BlogPostBrowseQueryBuilder;
-import com.jivesoftware.community.content.threads.ThreadBrowseQueryBuilder;
 import com.jivesoftware.community.favorites.Favorite;
 import com.jivesoftware.community.favorites.FavoriteManager;
 import com.jivesoftware.community.favorites.type.ExternalUrlObjectType;
 import com.jivesoftware.community.favorites.type.FavoritableType;
-import com.jivesoftware.community.impl.DbDocumentManager;
-import com.jivesoftware.community.impl.DbForumManager;
-import com.jivesoftware.community.impl.UserContainerManagerImpl;
 import com.jivesoftware.community.impl.dao.ApprovalWorkflowBean;
 import com.jivesoftware.community.lifecycle.JiveApplication;
 import com.jivesoftware.community.moderation.JiveObjectModerator;
 import com.jivesoftware.community.moderation.ModerationHelper;
 import com.jivesoftware.community.moderation.ModerationItemException;
-import com.jivesoftware.community.objecttype.ContainableType;
-import com.jivesoftware.community.objecttype.ContainableTypeManager;
 import com.jivesoftware.community.statuslevel.StatusLevelManager;
-
-import org.apache.log4j.Logger;
-import org.openrdf.sail.rdbms.evaluation.QueryBuilderFactory;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
 
 /**
  * DB Implementation of {@link SpamManager}
@@ -306,33 +322,40 @@ public class DbSpamManager implements SpamManager {
 	
 	@Override
 	public boolean hasSomeContent(User author, JiveContentObject newObject){
-		//check whether there is any content that User author created before
+		//checks whether there is any content that User author created before
+		
+		ModerationHelper moderationHelper = JiveApplication.getContext().getModerationHelper();
 		
 		//check for Messages and Threads (root discussions and questions):
 		int messagesCount = forumManager.getUserMessageCount(author);
-		log.info("hasSomeContent MessagesSize: "+messagesCount);
+		log.debug("hasSomeContent MessagesSize: "+messagesCount);
 		
 		//moderation-safe message addition:
 		//for each user-added message check whether the message is moderated
-		//if all are moderated, send a new content to moderation too
-		ModerationHelper moderationHelper = JiveApplication.getContext().getModerationHelper();
-		
+		//if all are moderated, also send a new content to moderation
 		if(messagesCount>0){
 			for(ForumMessage m:forumManager.getUserMessages(author)){
 				
-				//forumManager.getUserMessages() might also return message being inserted when triggering interceptor
-				if(!moderationHelper.isInModeration(newObject) && !m.equals(newObject)){
-					log.debug("message "+m.getPlainSubject()+" does not equal to the message to be inserted and is not yet moderated");
+				//forumManager.getUserMessages() also returns message being inserted when triggering interceptor
+				if(!moderationHelper.isInModeration(m) && !m.equals(newObject)){
+					log.debug("message "+m.getPlainSubject()+" does not equal to the message to be inserted and is not moderated");
 					return true;
 				}
 			}
 		}
 		
 		//check for documents
-		int documentsCount = documentManager.getUserDocumentCount(author, new DocumentState[]{DocumentState.PUBLISHED});
-		log.info("hasSomeContent: Documents size: "+documentsCount);
-		if(documentsCount>0){
-			return true;
+		int documentsCount = documentManager.getUserDocumentCount(author, documentStates);
+		log.debug("hasSomeContent: Documents size: "+documentsCount);
+		
+		//moderation-safe edition: similar to messages
+		if(documentsCount>=1){
+			for(Document d: documentManager.getUserDocuments(author, documentStates)){
+				if(!moderationHelper.isInModeration(d) && d.getID() != newObject.getID()){
+					log.debug("document "+d.getPlainSubject()+" does not equal to the document to be inserted and is not moderated");
+					return true;
+				}
+			}
 		}
 		
 		int blogCount = 0;
@@ -343,9 +366,9 @@ public class DbSpamManager implements SpamManager {
 				return true;
 			}
 		}
-		log.info("hasSomeContent BlogSize: 0");
+		log.debug("hasSomeContent BlogSize: 0");
 		
-		//Do not trigger interceptor:
+		//Do not trigger interceptor, thus is not included:
 		//Poll, File, Task, Bookmark, Status update
 		
 		if(log.isDebugEnabled()){
