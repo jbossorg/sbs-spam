@@ -70,7 +70,12 @@ public interface SpamManager {
 	 */
 	public Set<User> getUnapprovedSpammers(User moderator);
 	
-	
-	public boolean hasSomeContent(User author, JiveContentObject contentObject);
+	/**
+	 * Decides whether the particular user has already posted some content that is already approved
+	 * @param author particular user
+	 * @param contentObject Jive content to be added. Content for which the method is called is excluded from evaluation.
+	 * @return true if author of the content already has some other published message(s), document(s), or blog(s). Otherwise false.
+	 */
+	public boolean hasSomeContent(User author, JiveContentObject content);
 
 }

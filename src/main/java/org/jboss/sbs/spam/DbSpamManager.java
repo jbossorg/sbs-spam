@@ -5,41 +5,11 @@
  */
 package org.jboss.sbs.spam;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
-import org.apache.log4j.Logger;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.google.common.collect.Sets;
 import com.jivesoftware.base.User;
 import com.jivesoftware.base.UserManager;
-import com.jivesoftware.community.AbuseManager;
-import com.jivesoftware.community.AbuseReport;
-import com.jivesoftware.community.AbuseType;
-import com.jivesoftware.community.ApprovalManager;
-import com.jivesoftware.community.Blog;
-import com.jivesoftware.community.BlogManager;
-import com.jivesoftware.community.BlogPost;
-import com.jivesoftware.community.Document;
-import com.jivesoftware.community.DocumentManager;
-import com.jivesoftware.community.DocumentState;
-import com.jivesoftware.community.ForumManager;
-import com.jivesoftware.community.ForumMessage;
-import com.jivesoftware.community.ForumThread;
-import com.jivesoftware.community.JiveContainer;
-import com.jivesoftware.community.JiveContentObject;
-import com.jivesoftware.community.JiveGlobals;
-import com.jivesoftware.community.JiveObject;
-import com.jivesoftware.community.JiveObjectLoader;
-import com.jivesoftware.community.NotFoundException;
-import com.jivesoftware.community.ThreadResultFilter;
-import com.jivesoftware.community.UserAuthoredObject;
+import com.jivesoftware.community.*;
 import com.jivesoftware.community.audit.aop.Audit;
 import com.jivesoftware.community.browse.sort.BlogPostPublishDateSort;
 import com.jivesoftware.community.browse.util.BrowseQueryBuilderFactory;
@@ -54,6 +24,12 @@ import com.jivesoftware.community.moderation.JiveObjectModerator;
 import com.jivesoftware.community.moderation.ModerationHelper;
 import com.jivesoftware.community.moderation.ModerationItemException;
 import com.jivesoftware.community.statuslevel.StatusLevelManager;
+
+import org.apache.log4j.Logger;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
 
 /**
  * DB Implementation of {@link SpamManager}
@@ -321,61 +297,81 @@ public class DbSpamManager implements SpamManager {
 	}
 	
 	@Override
-	public boolean hasSomeContent(User author, JiveContentObject newObject){
-		//checks whether there is any content that User author created before
-		
+	public boolean hasSomeContent(User author, JiveContentObject newObject) {
+
 		ModerationHelper moderationHelper = JiveApplication.getContext().getModerationHelper();
-		
-		//check for Messages and Threads (root discussions and questions):
+
+		// Note: hasSomeContent expects its interceptor to be TYPE_POST (called
+		// AFTER creating a content),
+		// thus a number of existing content on time of creating a first content
+		// is always one.
+
+		// check for Messages and Threads (root discussions and questions):
 		int messagesCount = forumManager.getUserMessageCount(author);
-		log.debug("hasSomeContent MessagesSize: "+messagesCount);
-		
-		//moderation-safe message addition:
-		//for each user-added message check whether the message is moderated
-		//if all are moderated, also send a new content to moderation
-		if(messagesCount>0){
-			for(ForumMessage m:forumManager.getUserMessages(author)){
-				
-				//forumManager.getUserMessages() also returns message being inserted when triggering interceptor
-				if(!moderationHelper.isInModeration(m) && !m.equals(newObject)){
-					log.debug("message "+m.getPlainSubject()+" does not equal to the message to be inserted and is not moderated");
+		log.info("hasSomeContent Messages size: " + messagesCount);
+
+		// moderation-safe message addition:
+		// for each user-added message check whether the message is moderated
+		// if all found messages are moderated, send a new content to moderation
+		if (messagesCount > 0) {
+			for (ForumMessage m : forumManager.getUserMessages(author)) {
+
+				// forumManager.getUserMessages() also returns message being
+				// inserted when triggering interceptor
+				if (!moderationHelper.isInModeration(m) && !m.equals(newObject)) {
+					if (log.isDebugEnabled()) {
+						log.debug("message "
+								+ m.getPlainSubject()
+								+ " does not equal to the message to be inserted and is not moderated: returns true");
+					}
 					return true;
 				}
 			}
 		}
-		
-		//check for documents
+
+		// check for documents
 		int documentsCount = documentManager.getUserDocumentCount(author, documentStates);
-		log.debug("hasSomeContent: Documents size: "+documentsCount);
-		
-		//moderation-safe edition: similar to messages
-		if(documentsCount>=1){
-			for(Document d: documentManager.getUserDocuments(author, documentStates)){
-				if(!moderationHelper.isInModeration(d) && d.getID() != newObject.getID()){
-					log.debug("document "+d.getPlainSubject()+" does not equal to the document to be inserted and is not moderated");
+		log.info("hasSomeContent: Documents size: " + documentsCount);
+
+		// moderation-safe edition: similar to messages
+		if (documentsCount >= 1) {
+			for (Document d : documentManager.getUserDocuments(author, documentStates)) {
+				if (!moderationHelper.isInModeration(d) && d.getID() != newObject.getID()) {
+					if (log.isDebugEnabled()) {
+						log.debug("document: "
+								+ d.getPlainSubject()
+								+ "is not the document to be inserted and is not moderated: hasSomeContent returns true");
+					}
 					return true;
 				}
 			}
 		}
 		
-		int blogCount = 0;
-		for(Blog b: blogManager.getExplicitlyEntitledBlogs(author)){
-			if(b.getContributors().contains(author))
-			{
-				blogCount++;
-				return true;
+		// check for blogposts:
+		// Note: Blogpost edit does not trigger interceptor
+		for (Blog b : blogManager.getExplicitlyEntitledBlogs(author)) {
+			if (b.getContributors().contains(author)) {
+
+				Iterator<BlogPost> blogIterator = blogManager.getBlogPosts(b);
+				while (blogIterator.hasNext()) {
+					BlogPost existingPost = blogIterator.next();
+
+					if (existingPost.getID() != newObject.getID() && !moderationHelper.isInModeration(existingPost)) {
+						if (log.isDebugEnabled()) {
+							log.debug("hasSomeContent: Blog size > 0: "
+									+ existingPost.getSubject()
+									+ " is not moderated and is not the one being inserted: hasSomeContent returns true");
+						}
+						return true;
+					}
+				}
 			}
 		}
-		log.debug("hasSomeContent BlogSize: 0");
-		
-		//Do not trigger interceptor, thus is not included:
-		//Poll, File, Task, Bookmark, Status update
-		
-		if(log.isDebugEnabled()){
-			int result = documentsCount + messagesCount + blogCount;
-			log.debug("User "+author.getName()+" total content size: "+result);
-		}
-		
+		log.debug("hasSomeContent: Blog size: 0");
+
+		// Types not triggering interceptor, thus not considered:
+		// Poll, File, Task, Bookmark, Status update
+
 		return false;
 	}
 	
