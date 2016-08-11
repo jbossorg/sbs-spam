@@ -12,6 +12,7 @@ import com.jivesoftware.community.JiveContentObject;
 import com.jivesoftware.community.JiveInterceptor;
 import com.jivesoftware.community.JiveObject;
 import com.jivesoftware.community.RejectedException;
+import com.jivesoftware.community.annotations.PropertyNames;
 import com.jivesoftware.community.lifecycle.JiveApplication;
 import com.jivesoftware.community.lifecycle.spring.SpringJiveContextImpl;
 import com.jivesoftware.community.moderation.ModeratableType;
@@ -26,6 +27,7 @@ import com.jivesoftware.community.objecttype.ObjectTypeManager;
  * @author Michal Stefanik
  *
  */
+@PropertyNames({})
 public class ModerateOnFirstPostInterceptor implements JiveInterceptor {
 
 	private static final Logger log = Logger.getLogger(ModerateOnFirstPostInterceptor.class);
